@@ -49,6 +49,7 @@ module.exports = {
             a: 1,
             b: 2
         };
+        test.expect(1);
         testProvider = new ConsulCloudProvider({ logger });
         test.deepEqual(testProvider.logger, logger);
         test.done();
@@ -65,6 +66,7 @@ module.exports = {
         },
 
         testProviderOptions(test) {
+            test.expect(2);
             testProvider.init(providerOptions)
                 .then(() => {
                     test.deepEqual(testProvider.providerOptions, providerOptions);
@@ -90,6 +92,7 @@ module.exports = {
         },
 
         testSecret(test) {
+            test.expect(1);
             testProvider.getNodesFromUri('https://example.com')
                 .then((processedData) => {
                     test.deepEqual(processedData, {
@@ -105,6 +108,7 @@ module.exports = {
         },
 
         testCustomHeaders(test) {
+            test.expect(1);
             testProvider.getNodesFromUri('https://example.com', {
                 headers: {
                     Foo: 'Bar',
