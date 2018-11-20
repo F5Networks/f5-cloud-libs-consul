@@ -18,10 +18,11 @@
 
 const q = require('q');
 
+const cloudUtil = require('@f5devcentral/f5-cloud-libs').util;
 const ConsulCloudProvider = require('../../lib/consulCloudProvider');
 
 const providerOptions = {
-    secret: Buffer.from('password12345').toString('base64')
+    secret: cloudUtil.createBufferFrom('password12345').toString('base64')
 };
 
 let testProvider;
