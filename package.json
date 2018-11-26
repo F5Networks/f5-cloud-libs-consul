@@ -31,6 +31,7 @@
   "scripts": {
     "lint": "node node_modules/eslint/bin/eslint lib",
     "test": "node_modules/nodeunit/bin/nodeunit --reporter eclipse test test/lib",
-    "package": "./package.sh"
+    "package": "./package.sh",
+    "version": "bash ./setVersion.sh $npm_package_version && git add ."
   }
 }
