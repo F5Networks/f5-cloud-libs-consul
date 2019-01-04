@@ -1,0 +1,74 @@
+image: node:6
+
+stages:
+    - test
+    - package
+    - publish
+    - notify
+
+test_node6:
+    image: node:6
+    tags:
+        - docker-executor
+    stage: test
+    except:
+        - triggers
+    script:
+        - npm install --registry ${NPM_REGISTRY} @f5devcentral/f5-cloud-libs@beta
+        - npm install --registry ${NPM_REGISTRY}
+        - npm run lint
+        - npm test
+
+test_node8:
+    image: node:8
+    tags:
+        - docker-executor
+    stage: test
+    except:
+        - triggers
+    script:
+        - npm install --registry ${NPM_REGISTRY} @f5devcentral/f5-cloud-libs@beta
+        - npm install --registry ${NPM_REGISTRY}
+        - npm run lint
+        - npm test
+
+
+package:
+    tags:
+        - docker-executor
+    stage: package
+    only:
+        - /^release-.*/
+        - /^hf-.*/
+    script:
+        - npm run package -- --production
+    artifacts:
+        name: ${CI_PROJECT_NAME}-${CI_BUILD_REF}
+        paths:
+            - dist/
+            - doc/
+
+publish:
+    tags:
+        - docker-executor
+    stage: publish
+    only:
+        - master
+    script:
+        - npm install npm@latest -g --registry ${NPM_REGISTRY}
+        - echo '//registry.npmjs.org/:_authToken="${NPM_TOKEN}"' > ./.npmrc
+        - npm publish --access public --tag experimental
+
+notify:
+    tags:
+        - docker-executor
+    stage: notify
+    except:
+        - master
+    script:
+        - if [[ "$AUTO_NOTIFY" == true ]]; then
+        -     echo 'Running notifyProjects.sh'
+        -     ./build/notifyProjects.sh
+        - else
+        -     echo AUTO_NOTIFY is off, skipping notification.
+        - fi
