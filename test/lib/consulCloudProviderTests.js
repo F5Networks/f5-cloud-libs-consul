@@ -80,52 +80,88 @@ module.exports = {
         setUp(callback) {
             testProvider = new ConsulCloudProvider();
             testProvider.init(providerOptions)
-                .then(() => {
-                    testProvider.nodeProvider.getNodesFromUri = function getNodesFromUri(uri, options) {
-                        return q({
-                            uri,
-                            options
-                        });
-                    };
-                    callback();
-                });
+                .then(callback);
         },
 
         testSecret(test) {
-            test.expect(1);
-            testProvider.getNodesFromUri('https://example.com')
-                .then((processedData) => {
-                    test.deepEqual(processedData, {
-                        uri: 'https://example.com',
-                        options: {
-                            headers: {
-                                'X-Consul-Token': 'password12345'
-                            }
-                        }
-                    });
-                    test.done();
+            test.expect(2);
+            testProvider.nodeProvider.getNodesFromUri = function getNodesFromUri(uri, options) {
+                test.strictEqual(uri, 'https://example.com');
+                test.deepEqual(options, {
+                    headers: {
+                        'X-Consul-Token': 'password12345'
+                    }
                 });
+                test.done();
+            };
+            testProvider.getNodesFromUri('https://example.com');
         },
 
         testCustomHeaders(test) {
-            test.expect(1);
+            test.expect(2);
+            testProvider.nodeProvider.getNodesFromUri = function getNodesFromUri(uri, options) {
+                test.strictEqual(uri, 'https://example.com');
+                test.deepEqual(options, {
+                    headers: {
+                        'X-Consul-Token': 'password12345',
+                        Foo: 'Bar',
+                        Hello: 'World'
+                    }
+                });
+                test.done();
+            };
             testProvider.getNodesFromUri('https://example.com', {
                 headers: {
                     Foo: 'Bar',
                     Hello: 'World'
                 }
-            })
+            });
+        },
+
+        testIdProcessing(test) {
+            test.expect(1);
+            testProvider.nodeProvider.getNodesFromUri = function getNodesFromUri() {
+                return q([
+                    {
+                        id: {
+                            ID: '',
+                            Node: 'test-node-1'
+                        },
+                        ip: {
+                            public: '192.0.2.47',
+                            private: '192.0.2.17'
+                        }
+                    },
+                    {
+                        id: {
+                            ID: 'c17d2be5-200a-4ff1-ab92-996f120f88cc',
+                            Node: 'test-node-2'
+                        },
+                        ip: {
+                            public: '192.0.2.48',
+                            private: '192.0.2.18'
+                        }
+                    }
+                ]);
+            };
+            testProvider.getNodesFromUri('https://example.com')
                 .then((processedData) => {
-                    test.deepEqual(processedData, {
-                        uri: 'https://example.com',
-                        options: {
-                            headers: {
-                                'X-Consul-Token': 'password12345',
-                                Foo: 'Bar',
-                                Hello: 'World'
+                    test.deepEqual(processedData, [
+                        {
+                            id: 'test-node-1',
+                            ip: {
+                                public: '192.0.2.47',
+                                private: '192.0.2.17'
+                            }
+                        },
+                        {
+                            id: 'c17d2be5-200a-4ff1-ab92-996f120f88cc',
+                            ip: {
+                                public: '192.0.2.48',
+                                private: '192.0.2.18'
                             }
                         }
-                    });
+                    ]);
                     test.done();
                 });
         }
