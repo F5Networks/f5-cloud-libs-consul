@@ -17,30 +17,49 @@
 'use strict';
 
 const q = require('q');
+const fs = require('fs');
 
 const cloudUtil = require('@f5devcentral/f5-cloud-libs').util;
 const ConsulCloudProvider = require('../../lib/consulCloudProvider');
 
+const origRunShellCommand = cloudUtil.runShellCommand;
+const origReadFile = fs.readFile;
+
+const caBundle = '/foo/bar/myCert.pem';
 const providerOptions = {
-    secret: cloudUtil.createBufferFrom('password12345').toString('base64')
+    secret: cloudUtil.createBufferFrom('password12345').toString('base64'),
+    caBundle
 };
+const responseCertDir = ':foo:bar:myCert.pem_27774_1\n:foo:bar:myCert.pem_26654_1\n:foo:myCert.pem_16654_1';
 
 let testProvider;
+
+function mockRunShellCommand(response) {
+    cloudUtil.runShellCommand = function runShellCommand() {
+        return response;
+    };
+}
+
+function mockReadFile(response) {
+    fs.readFile = function readFile(path, callback) {
+        callback(null, response);
+    };
+}
 
 // Our tests cause too many event listeners. Turn off the check.
 process.setMaxListeners(0);
 
 module.exports = {
     setUp(callback) {
+        mockRunShellCommand(q(responseCertDir));
+        mockReadFile(Buffer.from('foo bar'));
         testProvider = new ConsulCloudProvider();
         callback();
     },
 
     tearDown(callback) {
-        Object.keys(require.cache).forEach((key) => {
-            delete require.cache[key];
-        });
-
+        cloudUtil.runShellCommand = origRunShellCommand;
+        fs.readFile = origReadFile;
         callback();
     },
 
@@ -61,19 +80,52 @@ module.exports = {
             testProvider.init()
                 .then(() => {
                     test.ok(true);
+                })
+                .catch((err) => {
+                    test.ok(false, err);
+                })
+                .finally(() => {
                     test.done();
                 });
         },
 
         testProviderOptions(test) {
-            test.expect(2);
+            test.expect(3);
             testProvider.init(providerOptions)
                 .then(() => {
                     test.deepEqual(testProvider.providerOptions, providerOptions);
                     test.strictEqual(testProvider.token, 'password12345');
+                    test.strictEqual(
+                        testProvider.caBundleTmshPath,
+                        testProvider.providerOptions.caBundle
+                    );
+                })
+                .catch((err) => {
+                    test.ok(false, err);
+                })
+                .finally(() => {
                     test.done();
                 });
-        }
+        },
+
+        testBadCaCertPath(test) {
+            mockRunShellCommand(q.reject(new Error('Error: Command failed: ls -1t '
+                + '/config/filestore/files_d/foo_d/certificate_d/\nls: cannot access '
+                + '\'/config/filestore/files_d/foo_d/certificate_d/\': No such file or directory')));
+
+            test.expect(1);
+            testProvider.init(providerOptions)
+                .then(() => {
+                    test.ok(false, 'should have thrown "Command failed" error');
+                })
+                .catch((err) => {
+                    test.notStrictEqual(err.message.indexOf('Command failed: ls -1t'), -1);
+                })
+                .finally(() => {
+                    test.done();
+                });
+        },
+
     },
 
     testGetNodesFromUri: {
@@ -90,11 +142,18 @@ module.exports = {
                 test.deepEqual(options, {
                     headers: {
                         'X-Consul-Token': 'password12345'
-                    }
+                    },
+                    ca: Buffer.from('foo bar')
                 });
-                test.done();
+                return q([]);
             };
-            testProvider.getNodesFromUri('https://example.com');
+            testProvider.getNodesFromUri('https://example.com')
+                .catch((err) => {
+                    test.ok(false, err);
+                })
+                .finally(() => {
+                    test.done();
+                });
         },
 
         testCustomHeaders(test) {
@@ -106,16 +165,23 @@ module.exports = {
                         'X-Consul-Token': 'password12345',
                         Foo: 'Bar',
                         Hello: 'World'
-                    }
+                    },
+                    ca: Buffer.from('foo bar')
                 });
-                test.done();
+                return q([]);
             };
             testProvider.getNodesFromUri('https://example.com', {
                 headers: {
                     Foo: 'Bar',
                     Hello: 'World'
                 }
-            });
+            })
+                .catch((err) => {
+                    test.ok(false, err);
+                })
+                .finally(() => {
+                    test.done();
+                });
         },
 
         testIdProcessing(test) {
@@ -162,6 +228,11 @@ module.exports = {
                             }
                         }
                     ]);
+                })
+                .catch((err) => {
+                    test.ok(false, err);
+                })
+                .finally(() => {
                     test.done();
                 });
         }
