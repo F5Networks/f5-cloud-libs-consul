@@ -28,7 +28,8 @@ const origReadFile = fs.readFile;
 const caBundle = '/foo/bar/myCert.pem';
 const providerOptions = {
     secret: cloudUtil.createBufferFrom('password12345').toString('base64'),
-    caBundle
+    caBundle,
+    rejectUnauthorized: false
 };
 const responseCertDir = ':foo:bar:myCert.pem_27774_1\n:foo:bar:myCert.pem_26654_1\n:foo:myCert.pem_16654_1';
 
@@ -76,9 +77,10 @@ module.exports = {
 
     testInit: {
         testInitSuccess(test) {
-            test.expect(1);
+            test.expect(2);
             testProvider.init()
                 .then(() => {
+                    test.strictEqual(testProvider.rejectUnauthorized, true);
                     test.ok(true);
                 })
                 .catch((err) => {
@@ -90,7 +92,7 @@ module.exports = {
         },
 
         testProviderOptions(test) {
-            test.expect(3);
+            test.expect(4);
             testProvider.init(providerOptions)
                 .then(() => {
                     test.deepEqual(testProvider.providerOptions, providerOptions);
@@ -99,6 +101,7 @@ module.exports = {
                         testProvider.caBundleTmshPath,
                         testProvider.providerOptions.caBundle
                     );
+                    test.strictEqual(testProvider.rejectUnauthorized, false);
                 })
                 .catch((err) => {
                     test.ok(false, err);
@@ -143,7 +146,8 @@ module.exports = {
                     headers: {
                         'X-Consul-Token': 'password12345'
                     },
-                    ca: Buffer.from('foo bar')
+                    ca: Buffer.from('foo bar'),
+                    rejectUnauthorized: false
                 });
                 return q([]);
             };
@@ -166,7 +170,8 @@ module.exports = {
                         Foo: 'Bar',
                         Hello: 'World'
                     },
-                    ca: Buffer.from('foo bar')
+                    ca: Buffer.from('foo bar'),
+                    rejectUnauthorized: false
                 });
                 return q([]);
             };
