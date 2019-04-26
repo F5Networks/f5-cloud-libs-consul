@@ -1,6 +1,6 @@
 {
   "name": "@f5devcentral/f5-cloud-libs-consul",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Hashicorp Consul implementation of f5-cloud-libs provider specific code",
   "keywords": [
     "f5",
